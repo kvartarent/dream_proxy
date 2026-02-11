@@ -2,6 +2,11 @@ import express from "express";
 import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 
+// 1x1 прозрачный PNG (минимальная заглушка)
+const FALLBACK_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -57,15 +62,15 @@ app.post("/generate-image", async (req, res) => {
     const part = response.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
     const b64 = part?.inlineData?.data;
 
-    if (!b64) {
-      return res.status(500).json({ error: "No image data returned by model" });
+    if (b64) {
+      return res.json({ image: b64 });
     }
 
-    // Отдаём чистый base64 — фронт сам добавляет data:image/png;base64,
-    return res.json({ image: b64 });
+    console.warn("Gemini returned no image, using fallback");
+    return res.json({ image: FALLBACK_BASE64 });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: "Image generation failed" });
+    console.error("Image generation error:", e);
+    return res.json({ image: FALLBACK_BASE64 });
   }
 });
 
