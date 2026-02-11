@@ -41,4 +41,33 @@ app.post("/interpret", async (req, res) => {
   }
 });
 
+app.post("/generate-image", async (req, res) => {
+  try {
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "prompt is required" });
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: { parts: [{ text: prompt }] },
+      config: { imageConfig: { aspectRatio: "1:1" } },
+    });
+
+    const part = response.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+    const b64 = part?.inlineData?.data;
+
+    if (!b64) {
+      return res.status(500).json({ error: "No image data returned by model" });
+    }
+
+    // Отдаём чистый base64 — фронт сам добавляет data:image/png;base64,
+    return res.json({ image: b64 });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Image generation failed" });
+  }
+});
+
+
 app.listen(PORT, () => console.log(`Proxy listening on ${PORT}`));
